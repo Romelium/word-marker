@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="A Word Marker tool that allows you to mark selected words in your text with an encapsulation character. Add words manually or via file upload.">
+    <meta name="author" content="Romeo B. Manzanilla III">
+    <meta name="keywords" content="word marker, text marking, encapsulation character, word list, text processing">
+    <title>Word Marker</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #ffffff;
+            color: #000000;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: auto;
+        }
+
+        textarea {
+            width: 100%;
+            height: 100px;
+            margin: 10px 0;
+        }
+
+        .word-list {
+            max-height: 150px;
+            overflow-y: auto;
+            border: 1px solid #ccc;
+            padding: 5px;
+            margin: 10px 0;
+            background-color: #f9f9f9;
+        }
+
+        ul {
+            list-style-type: none;
+            padding: 0;
+        }
+
+        .message {
+            margin: 10px 0;
+        }
+
+        .error {
+            margin: 10px 0;
+            color: red;
+        }
+
+        .marked-word {
+            background-color: yellow;
+            font-weight: bold;
+        }
+
+        .output-area {
+            min-height: 100px;
+            border: 1px solid #ccc;
+            padding: 10px;
+            background-color: #f9f9f9;
+            white-space: pre-wrap;
+            overflow-y: auto;
+            font-family: Arial, sans-serif;
+            font-size: 14px;
+        }
+
+        /* Light Mode Color Scheme */
+        @media (prefers-color-scheme: light) {
+            body {
+                background-color: #ffffff;
+                color: #000000;
+            }
+
+            .word-list {
+                background-color: #f9f9f9;
+                color: #000000;
+            }
+
+            textarea {
+                background-color: #ffffff;
+                color: #000000;
+                border: 1px solid #ccc;
+            }
+
+            .marked-word {
+                background-color: yellow;
+                color: black;
+            }
+
+            .output-area {
+                background-color: #f9f9f9;
+                color: #000000;
+            }
+
+            .message {
+                color: green;
+            }
+
+            .error {
+                color: red;
+            }
+        }
+
+        /* Dark Mode Color Scheme */
+        @media (prefers-color-scheme: dark) {
+            body {
+                background-color: #2e2e2e;
+                color: #ffffff;
+            }
+
+            .word-list {
+                background-color: #333333;
+                color: #ffffff;
+            }
+
+            textarea {
+                background-color: #444444;
+                color: #ffffff;
+                border: 1px solid #666666;
+            }
+
+            .marked-word {
+                background-color: yellow;
+                color: black;
+            }
+
+            .output-area {
+                background-color: #333333;
+                color: #ffffff;
+            }
+
+            .message {
+                color: lightgreen;
+            }
+
+            .error {
+                color: darkred;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 10px;
+                width: auto;
+            }
+
+            textarea {
+                height: 80px;
+            }
+
+            .word-list {
+                max-height: 120px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1 id="word-marker">Word Marker</h1>
+        <p>Enter a text and mark selected words using an encapsulation character.</p>
+
+        <!-- Add Word Section -->
+        <section aria-labelledby="word-marker">
+            <label for="wordInput">Add a word to the wordlist:</label>
+            <input type="text" id="wordInput" placeholder="Enter a word" aria-describedby="wordHelp">
+            <small id="wordHelp">Enter a word to add to the word list.</small>
+            <button onclick="addWord()" aria-label="Add Word">Add Word</button>
+            <p id="wordMessage" class="message"></p>
+        </section>
+
+        <!-- Upload Wordlist -->
+        <section>
+            <label for="wordFile">Upload a file for wordlist:</label>
+            <input type="file" id="wordFile" accept=".txt">
+            <button onclick="uploadWordFile()">Upload File</button>
+            <p id="fileMessage" class="message"></p>
+        </section>
+
+        <!-- Wordlist Display -->
+        <div class="word-list">
+            <strong>Wordlist:</strong>
+            <ul id="wordListDisplay"></ul>
+        </div>
+
+        <!-- Encapsulation Character -->
+        <section>
+            <label for="encapsulationChar">Choose an encapsulation character:</label>
+            <select id="encapsulationChar">
+                <option value="*">*</option>
+                <option value="_">_</option>
+                <option value="~">~</option>
+                <option value="`">`</option>
+            </select>
+        </section>
+
+        <!-- Case Sensitivity -->
+        <section>
+            <label for="caseSensitiveToggle">Case Sensitive</label>
+            <input type="checkbox" id="caseSensitiveToggle">
+        </section>
+
+        <!-- Input Text -->
+        <section>
+            <label for="inputText">Enter text:</label>
+            <textarea id="inputText" placeholder="Type your text here..."></textarea>
+        </section>
+
+        <!-- Mark Words Button -->
+        <button onclick="markWords()">Mark Words</button>
+        <p id="errorText" class="error"></p>
+        <p id="infoText" class="message"></p>
+
+        <!-- Output Section -->
+        <h3>Output:</h3>
+        <button onclick="copyOutput()">Copy Output</button>
+        <div id="outputDisplay" class="output-area" contenteditable="false"></div>
+    </div>
+
+    <script>
+        const wordList = new Set();
+
+        // Escape special characters in regular expressions
+        function escapeRegExp(string) {
+            return string.replace(/[.*+?^=!:${}()|\[\]\/\\]/g, '\\$&');
+        }
+
+        // Add Word to Wordlist
+        function addWord() {
+            const wordInput = document.getElementById('wordInput').value.trim();
+            const wordMessage = document.getElementById('wordMessage');
+
+            if (!wordInput) {
+                wordMessage.textContent = 'Please enter a valid word.';
+                wordMessage.style.color = 'red';
+                return;
+            }
+
+            const wordToAdd = document.getElementById('caseSensitiveToggle').checked ? wordInput : wordInput.toLowerCase();
+
+            if (wordList.has(wordToAdd)) {
+                wordMessage.textContent = 'Word already in the list.';
+                wordMessage.style.color = 'red';
+                return;
+            }
+
+            wordList.add(wordToAdd);
+            updateWordListDisplay();
+            wordMessage.textContent = 'Word added successfully.';
+            wordMessage.style.color = 'green';
+            document.getElementById('wordInput').value = '';
+        }
+
+        // Upload Word File
+        function uploadWordFile() {
+            const fileInput = document.getElementById('wordFile');
+            const fileMessage = document.getElementById('fileMessage');
+
+            if (!fileInput.files.length) {
+                fileMessage.textContent = 'Please select a file.';
+                fileMessage.style.color = 'red';
+                return;
+            }
+
+            const file = fileInput.files[0];
+            const reader = new FileReader();
+
+            reader.onload = function (event) {
+                const content = event.target.result;
+
+                // Split file content by newlines and add to wordlist
+                const words = content.split(/\r?\n/).map(word => word.trim()).filter(Boolean);
+                words.forEach(word => wordList.add(word));
+
+                updateWordListDisplay();
+                fileMessage.textContent = 'File uploaded successfully. Words added to the list.';
+                fileMessage.style.color = 'green';
+            };
+
+            reader.onerror = function () {
+                fileMessage.textContent = 'Error reading the file.';
+                fileMessage.style.color = 'red';
+            };
+
+            reader.readAsText(file);
+        }
+
+        // Update Wordlist Display
+        function updateWordListDisplay() {
+            const wordListDisplay = document.getElementById('wordListDisplay');
+            wordListDisplay.innerHTML = '';
+            wordList.forEach(word => {
+                const li = document.createElement('li');
+                li.textContent = word;
+                wordListDisplay.appendChild(li);
+            });
+        }
+
+        // Mark Words in Text
+        function markWords() {
+            const text = document.getElementById('inputText').value;
+            const char = document.getElementById('encapsulationChar').value;
+            const caseSensitive = document.getElementById('caseSensitiveToggle').checked;
+            const errorText = document.getElementById('errorText');
+            const infoText = document.getElementById('infoText');
+            const outputDisplay = document.getElementById('outputDisplay');
+
+            errorText.textContent = '';
+            infoText.textContent = '';
+
+            if (!text.trim()) {
+                errorText.textContent = 'Please enter text to process.';
+                return;
+            }
+
+            if (wordList.size === 0) {
+                errorText.textContent = 'Please add words to the wordlist before marking.';
+                return;
+            }
+
+            const wordListArray = Array.from(wordList).map(escapeRegExp);
+            const regexFlags = caseSensitive ? 'g' : 'gi';
+            const wordRegex = new RegExp(`\\b(${wordListArray.join('|')})\\b`, regexFlags);
+
+            let markedCount = 0;
+
+            // Replace words with HTML span tags
+            const processedText = text.replace(wordRegex, match => {
+                markedCount++;
+                return `<span class="marked-word">${char}${match}${char}</span>`;
+            });
+
+            // Display the processed text as HTML in the output area
+            outputDisplay.innerHTML = processedText;
+
+            infoText.textContent = markedCount > 0
+                ? `${markedCount} word(s) marked.`
+                : 'No matching words found.';
+        }
+
+        // Copy Output
+        function copyOutput() {
+            const outputDisplay = document.getElementById('outputDisplay');
+            const plainText = outputDisplay.textContent; // Get plain text without HTML
+            navigator.clipboard.writeText(plainText)
+                .then(() => {
+                    alert('Output copied to clipboard!');
+                })
+                .catch(err => {
+                    alert('Failed to copy text. Please try again.');
+                });
+        }
+    </script>
+</body>
+
+</html>
